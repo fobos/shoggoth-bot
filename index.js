@@ -13,8 +13,20 @@ bot.start((ctx) => ctx.reply(`Привет. \nЯ бот для книжного 
 bot.help((ctx) => ctx.reply(`Привет, ${ctx.message.from.username}.\nЯ пока ничего не умею`));
 
 // /add - добавить книгу в список
-bot.command('add', (ctx) => {
-    ctx.reply('Заглушка для функции добавления книг');
+bot.command('add', async (ctx) => {
+    const driver = await initDb();
+    const query = `
+        upsert INTO books_list (id, tg_login, title)
+        VALUES ('${uuidv4()}', '${ctx.message.from.username}', '${ctx.payload}');
+    `;
+
+    await driver.tableClient.withSession(async (session) => {
+        logger.info('Making an upsert...');
+        await session.executeQuery(query);
+        logger.info('Upsert completed');
+    });
+
+    ctx.reply('👍');
 });
 
 // /list - вернуть список добавленных книг
