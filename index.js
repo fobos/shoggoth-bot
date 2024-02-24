@@ -1,9 +1,11 @@
 "use strict";
 
 const { Telegraf } = require('telegraf');
+const { TypedData } = require('ydb-sdk');
 const {v4: uuidv4}  = require('uuid');
 
 const {initDb, logger} = require('./db');
+
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
@@ -19,17 +21,20 @@ bot.command('add', (ctx) => {
 bot.command('list', async (ctx) => {
     const driver = await initDb();
     const result = await driver.tableClient.withSession(async (session) => {
-        await selectBooks(session, logger);
+        const query = 'SELECT * FROM `books_list`;';
+        const {resultSets} = await session.executeQuery(query);
+
+        return TypedData.createNativeObjects(resultSets[0]);
     });
     await driver.destroy();
     logger.info('Driver destroyed');
 
-    ctx.reply(result.reduce((acc, r) => {
-        return acc + r + '\n';
+    ctx.reply(result.reduce((acc, book) => {
+        return acc + book.title + '\n';
     }, ''));
 });
 
-// Рекация на любой текс
+// Рекация на любой текст
 bot.on('text', (ctx) => {
     ctx.reply(`Привет, ${ctx.message.from.username}`);
 });
@@ -37,13 +42,8 @@ bot.on('text', (ctx) => {
 async function selectBooks(session, logger) {
     const query = 'SELECT * FROM `books_list`;';
     const {resultSets} = await session.executeQuery(query);
-    logger.info("==========");
-    logger.info(resultSets);
 
-    const {rows} = resultSets[0];
-    return rows.map((row) => {
-        return Object.values(row.items[2])[0];
-    });
+    return TypedData.createNativeObjects(resultSets[0]);
 }
 
 module.exports.handler = async function (event, context) {
