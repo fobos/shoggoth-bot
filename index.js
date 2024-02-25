@@ -1,6 +1,6 @@
 "use strict";
 
-const { Telegraf } = require('telegraf');
+const { Telegraf} = require('telegraf');
 const { TypedData } = require('ydb-sdk');
 const {v4: uuidv4}  = require('uuid');
 
@@ -16,8 +16,13 @@ bot.help((ctx) => ctx.reply(`Привет, ${ctx.message.from.username}.\nЯ п�
 bot.command('add', async (ctx) => {
     const driver = await initDb();
     const query = `
-        upsert INTO books_list (id, tg_login, title)
-        VALUES ('${uuidv4()}', '${ctx.message.from.username}', '${ctx.payload}');
+        UPSERT INTO books_list (id, tg_login, title, created_at)
+        VALUES (
+            '${uuidv4()}',
+            '${ctx.message.from.username}',
+            '${ctx.payload}',
+            DateTime::MakeDatetime(DateTime::FromSeconds(${ctx.message.date}))
+        );
     `;
 
     await driver.tableClient.withSession(async (session) => {
@@ -26,6 +31,9 @@ bot.command('add', async (ctx) => {
         logger.info('Upsert completed');
     });
 
+    await driver.destroy();
+    logger.info('Driver destroyed');
+
     ctx.reply('👍');
 });
 
@@ -33,7 +41,7 @@ bot.command('add', async (ctx) => {
 bot.command('list', async (ctx) => {
     const driver = await initDb();
     const result = await driver.tableClient.withSession(async (session) => {
-        const query = 'SELECT * FROM `books_list`;';
+        const query = 'SELECT * FROM books_list ORDER BY created_at;';
         const {resultSets} = await session.executeQuery(query);
 
         return TypedData.createNativeObjects(resultSets[0]);
@@ -50,13 +58,6 @@ bot.command('list', async (ctx) => {
 bot.on('text', (ctx) => {
     ctx.reply(`Привет, ${ctx.message.from.username}`);
 });
-
-async function selectBooks(session, logger) {
-    const query = 'SELECT * FROM `books_list`;';
-    const {resultSets} = await session.executeQuery(query);
-
-    return TypedData.createNativeObjects(resultSets[0]);
-}
 
 module.exports.handler = async function (event, context) {
     const message = JSON.parse(event.body);
