@@ -9,7 +9,7 @@
   "author": "Aleksandr Biryukov",
   "license": "MIT",
   "dependencies": {
-    "telegraf": "^4.15.3",
+    "telegraf": "^4.16.0",
     "ydb-sdk": "^3.0.0",
     "uuid": "^9.0.1"
   }
