@@ -14,13 +14,21 @@ bot.help((ctx) => ctx.reply(`Привет, ${ctx.message.from.username}.\nЯ п�
 
 // /add - добавить книгу в список
 bot.command('add', async (ctx) => {
+    const bookTitle = ctx.payload && ctx.payload.trim();
+    // TODO: сделать prompt для названия книги
+    if (!bookTitle) {
+        ctx.reply('Укажи название кники после команды');
+        return;
+    }
+
     const driver = await initDb();
+    // TODO: генерировать дату создания не из сообщения
     const query = `
         UPSERT INTO books_list (id, tg_login, title, created_at)
         VALUES (
             '${uuidv4()}',
             '${ctx.message.from.username}',
-            '${ctx.payload}',
+            '${bookTitle}',
             DateTime::MakeDatetime(DateTime::FromSeconds(${ctx.message.date}))
         );
     `;
